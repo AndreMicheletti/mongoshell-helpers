@@ -43,6 +43,23 @@ DB.prototype.seeSlowOperations = function(limit = 1000) {
         "queryTargeting": { "$gt": 1 }
     }},
     {"$sort": { "queryTargeting": -1 }},
-    {"$limit": limit}
+    {"$limit": limit},
+    {"$group": {
+        "_id": "$ns",
+        "commands": { "$addToSet": {
+            "op": "$op",
+            "ns": "$ns",
+            "command": "$command",
+            "keysExamined": "$keysExamined",
+            "docsExamined": "$docsExamined",
+            "nreturned": "$nreturned",
+            "responseLength": "$responseLength",
+            "millis": "$millis",
+            "planSummary": "$planSummary",
+            "execStats": "$execStats",
+            "ts": "$ts",
+            "queryTargeting": "$queryTargeting"
+        }}
+    }}
   ]).pretty()
 }
