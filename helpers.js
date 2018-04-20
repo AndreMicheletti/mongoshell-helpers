@@ -16,11 +16,12 @@ DB.prototype.changeProfileSize = function(newSize = 4000000) {
   db.setProfilingLevel(0);
   db.system.profile.drop();
   db.createCollection( "system.profile", { 'capped': true, 'size': newSize } );
-  db.setProfilingLevel(1);
+  return `Done. db.system.profile new size is ${newSize}`;
 };
 
-DB.prototype.seeSlowOperations = function(limit = 1000) {
-  db.system.profile.aggregate([
+DB.prototype.showInefficientOps = function(limit = 1000) {
+  db.setSlaveOk();
+  return db.system.profile.aggregate([
     {"$match": {
         "op": { "$ne" : 'command' },
         "nreturned": {"$gt": 0}
@@ -62,4 +63,35 @@ DB.prototype.seeSlowOperations = function(limit = 1000) {
         }}
     }}
   ]).pretty()
+}
+
+DB.prototype.showSlowerThan = function(slower, limit = 100) {
+  db.setSlaveOk();
+  return db.system.profile.aggregate([
+    {"$match": {
+        "op": { "$ne" : 'command' },
+        "nreturned": {"$gt": 0},
+        "millis": {"$gte": slower}
+    }},
+    {"$limit": limit},
+    {"$group": {
+        "_id": "$ns",
+        "totalMillis": {"$sum": "$millis"},
+        "commands": { "$addToSet": {
+            "op": "$op",
+            "ns": "$ns",
+            "command": "$command",
+            "keysExamined": "$keysExamined",
+            "docsExamined": "$docsExamined",
+            "nreturned": "$nreturned",
+            "responseLength": "$responseLength",
+            "millis": "$millis",
+            "planSummary": "$planSummary",
+            "execStats": "$execStats",
+            "ts": "$ts",
+            "queryTargeting": "$queryTargeting"
+        }}
+    }},
+    {"$sort": { "totalMillis": -1 }},
+  ])
 }
